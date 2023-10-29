@@ -1,0 +1,204 @@
+{
+  "tests": [
+    {
+      "name": "NORMAL",
+      "setup": "rm -rf test && git clone https://github.com/N2Sys-EDU/Lab2-RTP-Test.git test",
+      "run": "./test/runtest.sh NORMAL",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "NORMAL_SMALL_WINDOW",
+      "setup": "",
+      "run": "./test/runtest.sh NORMAL_SMALL_WINDOW",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "NORMAL_OPT",
+      "setup": "",
+      "run": "./test/runtest.sh NORMAL_OPT",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "NORMAL_OPT_SMALL_WINDOW",
+      "setup": "",
+      "run": "./test/runtest.sh NORMAL_OPT_SMALL_WINDOW",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "RECEIVER_SINGLE_1",
+      "setup": "",
+      "run": "./test/runtest.sh RECEIVER_SINGLE_1",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "RECEIVER_SINGLE_2",
+      "setup": "",
+      "run": "./test/runtest.sh RECEIVER_SINGLE_2",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "RECEIVER_MIXED_1",
+      "setup": "",
+      "run": "./test/runtest.sh RECEIVER_MIXED_1",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "RECEIVER_MIXED_2",
+      "setup": "",
+      "run": "./test/runtest.sh RECEIVER_MIXED_2",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "SENDER_SINGLE_1",
+      "setup": "",
+      "run": "./test/runtest.sh SENDER_SINGLE_1",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "SENDER_SINGLE_2",
+      "setup": "",
+      "run": "./test/runtest.sh SENDER_SINGLE_2",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "SENDER_MIXED_1",
+      "setup": "",
+      "run": "./test/runtest.sh SENDER_MIXED_1",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "SENDER_MIXED_2",
+      "setup": "",
+      "run": "./test/runtest.sh SENDER_MIXED_2",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "OPT_RECEIVER_SINGLE_1",
+      "setup": "",
+      "run": "./test/runtest.sh OPT_RECEIVER_SINGLE_1",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "OPT_RECEIVER_SINGLE_2",
+      "setup": "",
+      "run": "./test/runtest.sh OPT_RECEIVER_SINGLE_2",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "OPT_RECEIVER_MIXED_1",
+      "setup": "",
+      "run": "./test/runtest.sh OPT_RECEIVER_MIXED_1",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "OPT_RECEIVER_MIXED_2",
+      "setup": "",
+      "run": "./test/runtest.sh OPT_RECEIVER_MIXED_2",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "OPT_SENDER_SINGLE_1",
+      "setup": "",
+      "run": "./test/runtest.sh OPT_SENDER_SINGLE_1",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "OPT_SENDER_SINGLE_2",
+      "setup": "",
+      "run": "./test/runtest.sh OPT_SENDER_SINGLE_2",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "OPT_SENDER_MIXED_1",
+      "setup": "",
+      "run": "./test/runtest.sh OPT_SENDER_MIXED_1",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    },
+    {
+      "name": "OPT_SENDER_MIXED_2",
+      "setup": "",
+      "run": "./test/runtest.sh OPT_SENDER_MIXED_2",
+      "input": "",
+      "output": "",
+      "comparison": "exact",
+      "timeout": 1,
+      "points": 10
+    }
+  ]
+}
