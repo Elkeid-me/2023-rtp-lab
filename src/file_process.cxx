@@ -1,33 +1,35 @@
 #include "file_process.hxx"
 #include "error_process.hxx"
+#include "tools.hxx"
 #include <cstdio>
 #include <unistd.h>
 
 namespace file_process
 {
-    static void close(int fd)
+    void close(int fd)
     {
         if (::close(fd) < 0)
-            error_process::unix_error("`file_process::close()' error: ");
+            error_process::unix_error("`close()` 错误: ");
     }
 
-    file_descriptor_wrapper::~file_descriptor_wrapper()
+    fd_wrapper::~fd_wrapper()
     {
+        log_debug("文件描述符包装器 `", m_file_descriptor, "` 析构");
         if (m_file_descriptor >= 0)
             ::file_process::close(m_file_descriptor);
 
         m_file_descriptor = -1;
     }
 
-    file_descriptor_wrapper::file_descriptor_wrapper(int file_descriptor)
-        : m_file_descriptor{file_descriptor}
+    fd_wrapper::fd_wrapper(int file_descriptor) : m_file_descriptor{file_descriptor}
     {
+        log_debug("文件描述符包装器 `", file_descriptor, "` 构造");
     }
 
-    bool file_descriptor_wrapper::is_valid() const { return m_file_descriptor >= 0; }
-    int file_descriptor_wrapper::get_file_descriptor() { return m_file_descriptor; }
+    bool fd_wrapper::is_valid() const { return m_file_descriptor >= 0; }
+    int fd_wrapper::get_file_descriptor() { return m_file_descriptor; }
 
-    std_FILE_wrapper::std_FILE_wrapper(std::FILE *file_ptr): m_file_ptr{file_ptr} {}
+    std_FILE_wrapper::std_FILE_wrapper(std::FILE *file_ptr) : m_file_ptr{file_ptr} {}
     std_FILE_wrapper::~std_FILE_wrapper()
     {
         if (m_file_ptr != nullptr)
