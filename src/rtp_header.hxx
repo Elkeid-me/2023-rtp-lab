@@ -4,15 +4,16 @@
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <ostream>
 
 constexpr std::size_t PAYLOAD_MAX{1461};
 
 // flags in the rtp header
 enum class rtp_header_flag : std::uint8_t
 {
-    RTP_SYN = 0b0001,
-    RTP_ACK = 0b0010,
-    RTP_FIN = 0b0100,
+    SYN = 0b0001,
+    ACK = 0b0010,
+    FIN = 0b0100,
 };
 
 class [[gnu::packed]] rtp_header
@@ -25,7 +26,11 @@ private:
 
 public:
     constexpr rtp_header(std::uint32_t seq_num, std::uint16_t length,
-                         std::uint32_t checksum, rtp_header_flag flag);
+                         std::uint32_t checksum, rtp_header_flag flag)
+        : m_seq_num{seq_num}, m_length{length}, m_checksum{checksum}, m_flag{flag}
+    {
+    }
+    friend std::ostream &operator<<(std::ostream &, const rtp_header &);
 };
 
 struct [[gnu::packed]] rtp_packet
@@ -33,9 +38,5 @@ struct [[gnu::packed]] rtp_packet
     rtp_header rtp;            // header
     char payload[PAYLOAD_MAX]; // data
 };
-
-static_assert(std::endian::native == std::endian::little);
-static_assert(sizeof(rtp_header) == 11);
-static_assert(sizeof(rtp_packet) == 1472);
 
 #endif // RTP_HEAD_HXX
