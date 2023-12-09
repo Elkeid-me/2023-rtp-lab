@@ -36,7 +36,8 @@ add_library(rtp_lib
     src/error_process.cxx
     src/file_process.cxx
     src/rtp_header.cxx
-    src/tools.cxx)
+    src/tools.cxx
+    src/socket_process.cxx)
 
 add_executable(sender src/sender.cxx)
 
