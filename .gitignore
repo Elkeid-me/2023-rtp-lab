@@ -1,5 +1,6 @@
-build/*
 .cache/*
+build/*
 docs/*
+.built
 .clang-format
 compile_commands.json
