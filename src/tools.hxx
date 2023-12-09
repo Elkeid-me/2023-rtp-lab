@@ -14,12 +14,12 @@ namespace logs
 
     template <typename... V> void debug(V... args)
     {
-        ((std::cout << "\033[32;1m[DEBUG]\033[0m ") << ... << args) << '\n';
+        ((std::cerr << "\033[32;1m[DEBUG]\033[0m ") << ... << args) << '\n';
     }
 
     template <typename... V> void error(V... args)
     {
-        ((std::cout << "\033[31;1m[ERROR]\033[0m ") << ... << args) << '\n';
+        ((std::cerr << "\033[31;1m[ERROR]\033[0m ") << ... << args) << '\n';
     }
 }
 
