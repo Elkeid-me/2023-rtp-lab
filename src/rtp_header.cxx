@@ -1,4 +1,5 @@
 #include "rtp_header.hxx"
+#include <bit>
 #include <cstdint>
 #include <ios>
 #include <iostream>

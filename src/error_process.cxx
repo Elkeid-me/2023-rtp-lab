@@ -12,5 +12,8 @@ namespace error_process
         logs::error_no_exit(msg, std::strerror(err_code));
     }
 
-    void gai_error(int code, const char *msg) { logs::error_no_exit(msg, gai_strerror(code)); }
+    void gai_error(int code, const char *msg)
+    {
+        logs::error_no_exit(msg, gai_strerror(code));
+    }
 };

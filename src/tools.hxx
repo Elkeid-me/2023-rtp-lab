@@ -38,7 +38,6 @@ namespace logs
     }
 }
 
-
 std::uint32_t compute_checksum(const void *pkt, std::size_t n_bytes);
 
 #endif

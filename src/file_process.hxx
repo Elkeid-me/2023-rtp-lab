@@ -39,7 +39,7 @@ namespace file_process
         ~std_FILE_wrapper();
 
         bool is_valid() const;
-        std::FILE* get_file_ptr();
+        std::FILE *get_file_ptr();
     };
 }
 

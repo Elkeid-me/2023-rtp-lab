@@ -1,3 +1,4 @@
+#include "socket_process.hxx"
 #include "error_process.hxx"
 #include "file_process.hxx"
 #include <memory>

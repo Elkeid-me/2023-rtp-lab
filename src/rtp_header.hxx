@@ -1,7 +1,6 @@
 #ifndef RTP_HEAD_HXX
 #define RTP_HEAD_HXX
 
-#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <ostream>
