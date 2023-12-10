@@ -1,6 +1,7 @@
 #ifndef RTP_HEAD_HXX
 #define RTP_HEAD_HXX
 
+#include "tools.hxx"
 #include <cstddef>
 #include <cstdint>
 #include <ostream>
@@ -24,11 +25,7 @@ private:
     rtp_header_flag m_flag;
 
 public:
-    constexpr rtp_header(std::uint32_t seq_num, std::uint16_t length,
-                         std::uint32_t checksum, rtp_header_flag flag)
-        : m_seq_num{seq_num}, m_length{length}, m_checksum{checksum}, m_flag{flag}
-    {
-    }
+    rtp_header(std::uint32_t seq_num, std::uint16_t length, rtp_header_flag flag);
     friend std::ostream &operator<<(std::ostream &, const rtp_header &);
 };
 

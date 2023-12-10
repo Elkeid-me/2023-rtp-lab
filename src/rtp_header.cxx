@@ -10,6 +10,12 @@ static_assert(std::endian::native == std::endian::little);
 static_assert(sizeof(rtp_header) == 11);
 static_assert(sizeof(rtp_packet) == 1472);
 
+rtp_header::rtp_header(std::uint32_t seq_num, std::uint16_t length, rtp_header_flag flag)
+    : m_seq_num{seq_num}, m_length{length}, m_checksum{0}, m_flag{flag}
+{
+    m_checksum = compute_checksum(this, sizeof(rtp_header) + m_length);
+}
+
 const std::unordered_map<rtp_header_flag, std::string> RTP_HEADER_FLAG_NAME{
     {rtp_header_flag::SYN, "SYN"},
     {rtp_header_flag::ACK, "ACK"},
