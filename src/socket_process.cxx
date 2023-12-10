@@ -1,7 +1,6 @@
 #include "socket_process.hxx"
 #include "error_process.hxx"
 #include "file_process.hxx"
-#include <memory>
 #include <netdb.h>
 #include <sys/socket.h>
 
@@ -105,20 +104,20 @@ static int open_sender_socket(const char *hostname, const char *port)
 
 namespace socket_process
 {
-    std::shared_ptr<file_process::fd_wrapper> open_receiver_socket(const char *port)
+    int open_receiver_socket(const char *port)
     {
         int ret{::open_receiver_socket(port)};
         if (ret < 0)
             error_process::unix_error("`open_receiver_socket()` 错误: ");
-        return std::make_shared<file_process::fd_wrapper>(ret);
+        return ret;
     }
 
-    std::shared_ptr<file_process::fd_wrapper> open_sender_socket(const char *host_name,
+    int open_sender_socket(const char *host_name,
                                                                  const char *port)
     {
         int ret{::open_sender_socket(host_name, port)};
         if (ret < 0)
             error_process::unix_error("`open_sender_socket()` 错误: ");
-        return std::make_shared<file_process::fd_wrapper>(ret);
+        return ret;
     }
 }
