@@ -1,5 +1,7 @@
 #include "tools.hxx"
+#include <charconv>
 #include <cstdint>
+#include <cstring>
 
 static std::uint32_t crc32_for_byte(std::uint32_t r)
 {
@@ -34,4 +36,30 @@ std::uint32_t compute_checksum(const void *pkt, std::size_t n_bytes)
     std::uint32_t crc{0};
     crc32(pkt, n_bytes, &crc);
     return crc;
+}
+
+std::pair<std::size_t, mode_type> parse_window_size_and_mode(const char *window_size_str,
+                                                             const char *mode_str)
+{
+    std::size_t window_size;
+    if (std::from_chars(window_size_str, window_size_str + std::strlen(window_size_str),
+                        window_size)
+            .ec != std::errc{})
+        logs::error("window size `", window_size_str, "` 不合法");
+    mode_type mode;
+    switch (mode_str[0])
+    {
+    case '0':
+        mode = mode_type::go_back_n;
+        break;
+    case '1':
+        mode = mode_type::selective_repeat;
+        break;
+    default:
+        mode = mode_type::unknown;
+        logs::error("mode `", mode_str, "` 不合法");
+        break;
+    }
+
+    return {window_size, mode};
 }
