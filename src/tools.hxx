@@ -34,7 +34,7 @@ namespace logs
 
     template <typename... V> void error(V... args)
     {
-        error_no_exit(args...);
+        ((std::cout << "\033[40;31m[ERROR] \033[0m") << ... << args);
         log_debug("抛出 `exceptions::GENERAL_EXCEPTION`, 开始栈回溯");
         throw exceptions::general_exception;
     }
