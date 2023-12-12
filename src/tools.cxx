@@ -2,6 +2,7 @@
 #include <charconv>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 
 static std::uint32_t crc32_for_byte(std::uint32_t r)
 {
@@ -62,4 +63,22 @@ std::pair<std::size_t, mode_type> parse_window_size_and_mode(const char *window_
     }
 
     return {window_size, mode};
+}
+
+std::ostream &operator<<(std::ostream &os, const mode_type &mode)
+{
+    switch (mode)
+    {
+    case mode_type::go_back_n:
+        os << "回退 n";
+        break;
+    case mode_type::selective_repeat:
+        os << "选择重传";
+        break;
+    case mode_type::unknown:
+        os << "未知";
+        break;
+    }
+
+    return os;
 }
