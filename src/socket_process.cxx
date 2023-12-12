@@ -31,6 +31,13 @@ namespace socket_process
                           sizeof(timeval));
     }
 
+    void set_5s_recv_timeout(int socket)
+    {
+        constexpr timeval SO_RCVTIMEO_OPTVAL_2s{2};
+        set_socket_option(socket, SOL_SOCKET, SO_RCVTIMEO, &SO_RCVTIMEO_OPTVAL_2s,
+                          sizeof(timeval));
+    }
+
     int open_receiver_socket(const char *port)
     {
         int ret{::open_receiver_socket(port)};

@@ -33,6 +33,8 @@ public:
     std::uint32_t get_seq_num() const;
     std::uint16_t get_length() const;
     std::uint8_t get_flag() const;
+
+    friend auto operator<=>(const rtp_header &lhs, const rtp_header &rhs) = default;
 };
 
 class [[gnu::packed]] rtp_packet : rtp_header

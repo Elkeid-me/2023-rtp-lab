@@ -1,4 +1,7 @@
 #include "tools.hxx"
+#include "error_process.hxx"
+#include "rtp_header.hxx"
+#include "socket_process.hxx"
 #include <charconv>
 #include <cstdint>
 #include <cstring>
@@ -81,4 +84,68 @@ std::ostream &operator<<(std::ostream &os, const mode_type &mode)
     }
 
     return os;
+}
+
+void send_and_wait_header(int attemp_times, int fd, const rtp_header &send_header,
+                          const rtp_header &wait_header)
+{
+    int times{0};
+    rtp_header header_buffer;
+    for (times = 1; times <= attemp_times; times++)
+    {
+        if (send_header.send(fd) == -1)
+            error_process::unix_error("`send()` error: ");
+        log_debug(SEND_HEADER_LOG, send_header);
+
+        if (header_buffer.recv(fd) == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+        {
+            log_debug("接收失败. 当前尝试次数: ", times);
+            continue;
+        }
+        log_debug(RECV_HEADER_LOG, header_buffer);
+        if (header_buffer == wait_header)
+        {
+            log_debug("包合法.");
+            break;
+        }
+        log_debug("包不合法. 当前尝试次数: ", times);
+    }
+    if (times > 50)
+        logs::error("超出尝试次数.");
+}
+
+static void send_and_wait_helper(int attemp_times, int fd, const rtp_header &send_header)
+{
+    int times{0};
+    rtp_header header_buffer;
+    for (times = 1; times <= 50; times++)
+    {
+        if (send_header.send(fd) == -1)
+            error_process::unix_error("`send()` error: ");
+
+        log_debug(SEND_HEADER_LOG, send_header);
+
+        if (header_buffer.recv(fd) == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+        {
+            log_debug("完成.");
+            break;
+        }
+
+        log_debug("重发. 当前尝试次数: ", times);
+    }
+    if (times > 50)
+        logs::error("超出尝试次数.");
+    socket_process::set_100ms_recv_timeout(fd);
+}
+
+template <> void send_and_wait<2>(int attemp_times, int fd, const rtp_header &send_header)
+{
+    socket_process::set_2s_recv_timeout(fd);
+    send_and_wait_helper(attemp_times, fd, send_header);
+}
+
+template <> void send_and_wait<5>(int attemp_times, int fd, const rtp_header &send_header)
+{
+    socket_process::set_5s_recv_timeout(fd);
+    send_and_wait_helper(attemp_times, fd, send_header);
 }
