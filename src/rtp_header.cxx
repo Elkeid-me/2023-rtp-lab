@@ -1,25 +1,66 @@
 #include "rtp_header.hxx"
+#include "tools.hxx"
 #include <bit>
+#include <cassert>
 #include <cstdint>
+#include <cstring>
 #include <ios>
 #include <iostream>
-#include <string>
-#include <unordered_map>
+#include <sys/socket.h>
+#include <sys/types.h>
 
 static_assert(std::endian::native == std::endian::little);
 static_assert(sizeof(rtp_header) == 11);
 static_assert(sizeof(rtp_packet) == 1472);
 
-rtp_header::rtp_header(std::uint32_t seq_num, std::uint16_t length, rtp_header_flag flag)
+rtp_header::rtp_header(std::uint32_t seq_num, std::uint16_t length, std::uint8_t flag)
     : m_seq_num{seq_num}, m_length{length}, m_checksum{0}, m_flag{flag}
 {
-    m_checksum = compute_checksum(this, sizeof(rtp_header) + m_length);
+    m_checksum = compute_checksum(this, sizeof(rtp_header));
 }
 
-const std::unordered_map<rtp_header_flag, std::string> RTP_HEADER_FLAG_NAME{
-    {rtp_header_flag::SYN, "SYN"},
-    {rtp_header_flag::ACK, "ACK"},
-    {rtp_header_flag::FIN, "FIN"}};
+[[nodiscard]] ssize_t rtp_header::send(int fd) const
+{
+    return ::send(fd, this, sizeof(rtp_header), 0);
+}
+
+[[nodiscard]] ssize_t rtp_header::recv(int fd)
+{
+    std::memset(this, 0, sizeof(rtp_header));
+    return ::recv(fd, this, sizeof(rtp_header), 0);
+}
+
+bool rtp_header::is_valid() const
+{
+    if (m_length > PAYLOAD_MAX)
+        return false;
+
+    if (m_flag & ~(SYN | ACK | FIN))
+        return false;
+
+    std::uint32_t original_checksum{m_checksum};
+    m_checksum = 0;
+    std::uint32_t new_checksum{compute_checksum(this, sizeof(rtp_header) + m_length)};
+    m_checksum = original_checksum;
+    if (new_checksum != original_checksum)
+        return false;
+
+    return true;
+}
+
+std::uint32_t rtp_header::get_seq_num() const { return m_seq_num; }
+std::uint16_t rtp_header::get_length() const { return m_length; }
+std::uint8_t rtp_header::get_flag() const { return m_flag; }
+
+rtp_packet::rtp_packet(std::uint32_t seq_num, std::uint16_t length, std::uint8_t flag,
+                       const void *buf)
+    : rtp_header(seq_num, length, flag)
+{
+    assert(length <= PAYLOAD_MAX);
+    std::memcpy(payload, buf, length);
+    m_checksum = 0;
+    m_checksum = compute_checksum(this, sizeof(rtp_header) + m_length);
+}
 
 std::ostream &operator<<(std::ostream &os, const rtp_header &rh)
 {
@@ -28,15 +69,13 @@ std::ostream &operator<<(std::ostream &os, const rtp_header &rh)
        << "length: " << rh.m_length << '\n'
        << "checksum: " << std::hex << std::showbase << rh.m_checksum << '\n';
     os.flags(f);
-
-    if (auto it{RTP_HEADER_FLAG_NAME.find(rh.m_flag)}; it != RTP_HEADER_FLAG_NAME.end())
-        os << "flag: " << it->second;
-    else
-    {
-        std::ios_base::fmtflags f{os.flags()};
-        os << "Unknown flag: " << std::hex << std::showbase
-           << static_cast<std::uint32_t>(rh.m_flag);
-        os.flags(f);
-    }
+    os << "flag: ";
+    if (rh.m_flag & SYN)
+        os << "SYN";
+    if (rh.m_flag & ACK)
+        os << " ACK";
+    if (rh.m_flag & FIN)
+        os << " FIN";
+    os << '\n';
     return os;
 }
