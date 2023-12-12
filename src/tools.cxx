@@ -13,13 +13,13 @@ static std::uint32_t crc32_for_byte(std::uint32_t r)
 static void crc32(const void *data, std::size_t n_bytes, std::uint32_t *crc)
 {
     static std::uint32_t table[0x100];
-    if (table[0] != 0)
+    if (table[0] == 0)
     {
         for (std::size_t i{0}; i < 0x100; i++)
             table[i] = crc32_for_byte(i);
     }
     for (std::size_t i{0}; i < n_bytes; i++)
-        *crc = table[(uint8_t)*crc ^ ((uint8_t *)data)[i]] ^ *crc >> 8;
+        *crc = table[(std::uint8_t)*crc ^ ((std::uint8_t *)data)[i]] ^ *crc >> 8;
 }
 
 // Computes checksum for `n_bytes` of data
