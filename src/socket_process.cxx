@@ -3,6 +3,7 @@
 #include "file_process.hxx"
 #include <netdb.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 static addrinfo *get_addr_info(const char *host, const char *service,
                                const addrinfo *hints)
@@ -24,7 +25,8 @@ static void set_socket_option(int s, int level, int optname, const void *optval,
         error_process::unix_error("`setsockopt` 错误: ");
 }
 
-static constexpr int optval{1};
+static constexpr int SO_REUSEADDR_OPTVAL{1};
+static constexpr timeval SO_RCVTIMEO_OPTVAL{0, 100'000};
 
 static int open_receiver_socket(const char *port)
 {
@@ -47,8 +49,11 @@ static int open_receiver_socket(const char *port)
             receiver_fd = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
             if (receiver_fd >= 0)
             {
-                set_socket_option(receiver_fd, SOL_SOCKET, SO_REUSEADDR, &optval,
-                                  sizeof(int));
+                set_socket_option(receiver_fd, SOL_SOCKET, SO_REUSEADDR,
+                                  &SO_REUSEADDR_OPTVAL, sizeof(int));
+
+                set_socket_option(receiver_fd, SOL_SOCKET, SO_RCVTIMEO,
+                                  &SO_RCVTIMEO_OPTVAL, sizeof(timeval));
                 if (bind(receiver_fd, ptr->ai_addr, ptr->ai_addrlen) == 0)
                     break;
 
@@ -86,9 +91,10 @@ static int open_sender_socket(const char *hostname, const char *port)
             sender_fd = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
             if (sender_fd >= 0)
             {
+                set_socket_option(sender_fd, SOL_SOCKET, SO_RCVTIMEO, &SO_RCVTIMEO_OPTVAL,
+                                  sizeof(timeval));
                 if (connect(sender_fd, ptr->ai_addr, ptr->ai_addrlen) == 0)
                     break;
-
                 file_process::close(sender_fd);
             }
             ptr = ptr->ai_next;
@@ -112,8 +118,7 @@ namespace socket_process
         return ret;
     }
 
-    int open_sender_socket(const char *host_name,
-                                                                 const char *port)
+    int open_sender_socket(const char *host_name, const char *port)
     {
         int ret{::open_sender_socket(host_name, port)};
         if (ret < 0)
