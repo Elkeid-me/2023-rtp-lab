@@ -76,6 +76,5 @@ std::ostream &operator<<(std::ostream &os, const rtp_header &rh)
         os << " ACK";
     if (rh.m_flag & FIN)
         os << " FIN";
-    os << '\n';
     return os;
 }
