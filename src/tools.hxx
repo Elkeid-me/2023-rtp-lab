@@ -32,7 +32,7 @@ namespace logs
 
     template <typename... V> void debug(V... args)
     {
-        ((std::cerr << "\033[32;1m[DEBUG]\033[0m ") << ... << args) << '\n';
+        ((std::cout << "\033[32;1m[DEBUG]\033[0m ") << ... << args) << '\n';
     }
 
     template <typename... V> void error(V... args)
