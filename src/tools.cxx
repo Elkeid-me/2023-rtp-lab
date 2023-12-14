@@ -94,7 +94,7 @@ void send_and_wait_header(int attemp_times, int fd, const rtp_header &send_heade
     for (times = 1; times <= attemp_times; times++)
     {
         if (send_header.send(fd) == -1)
-            error_process::unix_error("`send()` error: ");
+            error_process::unix_error("`send()` 错误: ");
         log_debug(SEND_HEADER_LOG, send_header);
 
         if (header_buffer.recv(fd) == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
@@ -104,10 +104,7 @@ void send_and_wait_header(int attemp_times, int fd, const rtp_header &send_heade
         }
         log_debug(RECV_HEADER_LOG, header_buffer);
         if (header_buffer == wait_header)
-        {
-            log_debug("包合法.");
             break;
-        }
         log_debug("包不合法. 当前尝试次数: ", times);
     }
     if (times > 50)
@@ -121,15 +118,12 @@ static void send_and_wait_helper(int attemp_times, int fd, const rtp_header &sen
     for (times = 1; times <= 50; times++)
     {
         if (send_header.send(fd) == -1)
-            error_process::unix_error("`send()` error: ");
+            error_process::unix_error("`send()` 错误: ");
 
         log_debug(SEND_HEADER_LOG, send_header);
 
         if (header_buffer.recv(fd) == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
-        {
-            log_debug("完成.");
             break;
-        }
 
         log_debug("重发. 当前尝试次数: ", times);
     }
