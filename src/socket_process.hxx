@@ -8,6 +8,7 @@ namespace socket_process
     void set_100ms_recv_timeout(int socket);
     void set_2s_recv_timeout(int socket);
     void set_5s_recv_timeout(int socket);
+    void set_no_recv_timeout(int socket);
 }
 
 #endif

@@ -33,8 +33,15 @@ namespace socket_process
 
     void set_5s_recv_timeout(int socket)
     {
-        constexpr timeval SO_RCVTIMEO_OPTVAL_2s{2};
-        set_socket_option(socket, SOL_SOCKET, SO_RCVTIMEO, &SO_RCVTIMEO_OPTVAL_2s,
+        constexpr timeval SO_RCVTIMEO_OPTVAL_5s{5};
+        set_socket_option(socket, SOL_SOCKET, SO_RCVTIMEO, &SO_RCVTIMEO_OPTVAL_5s,
+                          sizeof(timeval));
+    }
+
+    void set_no_recv_timeout(int socket)
+    {
+        constexpr timeval SO_RCVTIMEO_OPTVAL_NO{0, 0};
+        set_socket_option(socket, SOL_SOCKET, SO_RCVTIMEO, &SO_RCVTIMEO_OPTVAL_NO,
                           sizeof(timeval));
     }
 
