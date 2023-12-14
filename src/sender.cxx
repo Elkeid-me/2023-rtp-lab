@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 {
     try
     {
-        // std::ios::sync_with_stdio(false);
+        std::ios::sync_with_stdio(false);
         if (argc != 6)
             logs::error(
                 "参数错误. 你可以这样使用: ", argv[0],
@@ -170,7 +170,6 @@ void send_file(int fd, const char *file_path, std::size_t window_size,
         if (n_need_ack_window == 0)
             return;
         send_k(fd);
-
         if (epoll_wait(ep_fd, &ep_event, 1, -1) == -1)
             error_process::unix_error("`epoll_wait()` 错误: ");
 
@@ -293,9 +292,11 @@ template <mode_type mode> void resend(int fd)
 
 void send_k(int fd)
 {
+    bool send_{false};
     for (std::size_t seq_num{window_left_unsend_seq_num}; seq_num < window_right_seq_num;
          seq_num++)
     {
+        send_ = true;
         std::size_t index{seq_num % window_size};
         std::size_t payload_size{remain_file_size > PAYLOAD_MAX ? PAYLOAD_MAX
                                                                 : remain_file_size};
@@ -308,6 +309,8 @@ void send_k(int fd)
             logs::error("发送包失败", packets_vec[index]);
     }
     window_left_unsend_seq_num = window_right_seq_num;
+    if (send_)
+        set_timer(100);
 }
 
 void set_timer(int time)
