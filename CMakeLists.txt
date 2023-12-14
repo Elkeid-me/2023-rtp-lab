@@ -7,7 +7,7 @@ include_directories(third_party/googletest-release-1.12.1/googletest/include)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_BUILD_TYPE "Debug")
+set(CMAKE_BUILD_TYPE "Release")
 add_compile_options("-Wall")
 
 find_package(Threads REQUIRED)
