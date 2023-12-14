@@ -35,7 +35,7 @@ int main(int argc, char **argv)
 {
     try
     {
-        // std::ios::sync_with_stdio(false);
+        std::ios::sync_with_stdio(false);
         if (argc != 6)
             logs::error(
                 "参数错误. 你可以这样使用: ", argv[0],
@@ -107,7 +107,7 @@ void sender_core_function(const char *hose_name, const char *port, const char *f
                   &ep_event_timer) == -1)
         error_process::unix_error("`epoll_ctl()` 错误: ");
 
-    std::uint32_t seq_num{0}; // {std::random_device{}()};
+    std::uint32_t seq_num{std::random_device{}()};
     if (seq_num > std::numeric_limits<std::uint16_t>::max())
         seq_num /= (std::numeric_limits<std::uint8_t>::max() + 1);
     handshake(socket.get_file_descriptor(), seq_num);
