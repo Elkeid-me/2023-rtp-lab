@@ -16,12 +16,13 @@ static_assert(sizeof(rtp_packet) == 1472);
 rtp_header::rtp_header(std::uint32_t seq_num, std::uint16_t length, std::uint8_t flag)
     : m_seq_num{seq_num}, m_length{length}, m_checksum{0}, m_flag{flag}
 {
+    assert(length <= PAYLOAD_MAX);
     m_checksum = compute_checksum(this, sizeof(rtp_header));
 }
 
 [[nodiscard]] ssize_t rtp_header::send(int fd) const
 {
-    return ::send(fd, this, sizeof(rtp_header), 0);
+    return ::send(fd, this, sizeof(rtp_header) + m_length, 0);
 }
 
 [[nodiscard]] ssize_t rtp_header::recv(int fd)
@@ -43,7 +44,10 @@ bool rtp_header::is_valid() const
     std::uint32_t new_checksum{compute_checksum(this, sizeof(rtp_header) + m_length)};
     m_checksum = original_checksum;
     if (new_checksum != original_checksum)
+    {
+        log_debug("错误的校验和");
         return false;
+    }
 
     return true;
 }
@@ -52,12 +56,19 @@ std::uint32_t rtp_header::get_seq_num() const { return m_seq_num; }
 std::uint16_t rtp_header::get_length() const { return m_length; }
 std::uint8_t rtp_header::get_flag() const { return m_flag; }
 
-rtp_packet::rtp_packet(std::uint32_t seq_num, std::uint16_t length, std::uint8_t flag,
-                       const void *buf)
+rtp_packet::rtp_packet(std::uint32_t seq_num, std::uint16_t length, std::uint8_t flag)
     : rtp_header(seq_num, length, flag)
 {
-    assert(length <= PAYLOAD_MAX);
-    std::memcpy(payload, buf, length);
+}
+
+char *rtp_packet::get_buf() { return m_payload; }
+
+void rtp_packet::make_packet(std::uint32_t seq_num, std::uint16_t length,
+                             std::uint8_t flag)
+{
+    m_seq_num = seq_num;
+    m_length = length;
+    m_flag = flag;
     m_checksum = 0;
     m_checksum = compute_checksum(this, sizeof(rtp_header) + m_length);
 }

@@ -37,13 +37,18 @@ public:
     friend auto operator<=>(const rtp_header &lhs, const rtp_header &rhs) = default;
 };
 
-class [[gnu::packed]] rtp_packet : rtp_header
+class [[gnu::packed]] rtp_packet : public rtp_header
 {
 private:
-    char payload[PAYLOAD_MAX]; // data
+    char m_payload[PAYLOAD_MAX]; // data
 public:
-    rtp_packet(std::uint32_t seq_num, std::uint16_t length, std::uint8_t flag,
-               const void *buf);
+    rtp_packet(std::uint32_t seq_num, std::uint16_t length, std::uint8_t flag);
+
+    char *get_buf();
+
+    void make_packet(std::uint32_t seq_num, std::uint16_t length, std::uint8_t flag);
+
+    rtp_packet() = default;
 };
 
 #endif // RTP_HEAD_HXX
