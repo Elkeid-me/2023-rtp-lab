@@ -3,7 +3,6 @@
 #include "rtp_header.hxx"
 #include "socket_process.hxx"
 #include "tools.hxx"
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -22,10 +21,14 @@ void sender_core_function(const char *hose_name, const char *port, const char *f
                           std::size_t window_size, mode_type mode);
 void handshake(int fd, std::uint32_t seq_num);
 void terminate_connection(int fd, std::uint32_t fin_seq_num);
-void send_file_selective_repeat(int fd, const char *file_path, std::size_t window_size,
-                                std::uint32_t window_start_seq_num);
-void resend_selective_repeat(int fd);
-[[nodiscard]] bool process_ack_selective_repeat(std::uint32_t seq_num, int fd);
+
+template <mode_type mode>
+void send_file(int fd, const char *file_path, std::size_t window_size,
+               std::uint32_t start_seq_num);
+
+template <mode_type mode> void resend(int fd);
+
+template <mode_type mode> [[nodiscard]] bool process_ack(std::uint32_t seq_num);
 
 void send_k(int fd);
 
@@ -35,7 +38,7 @@ int main(int argc, char **argv)
 {
     try
     {
-        std::ios::sync_with_stdio(false);
+        // std::ios::sync_with_stdio(false);
         if (argc != 6)
             logs::error(
                 "参数错误. 你可以这样使用: ", argv[0],
@@ -112,14 +115,28 @@ void sender_core_function(const char *hose_name, const char *port, const char *f
         seq_num /= (std::numeric_limits<std::uint8_t>::max() + 1);
     handshake(socket.get_file_descriptor(), seq_num);
     log_debug("握手完成");
-    send_file_selective_repeat(socket.get_file_descriptor(), file_path, window_size,
-                               seq_num + 1);
+    switch (mode)
+    {
+
+    case mode_type::go_back_n:
+        send_file<mode_type::go_back_n>(socket.get_file_descriptor(), file_path,
+                                        window_size, seq_num + 1);
+        break;
+    case mode_type::selective_repeat:
+        send_file<mode_type::selective_repeat>(socket.get_file_descriptor(), file_path,
+                                               window_size, seq_num + 1);
+        break;
+    case mode_type::unknown:
+        logs::error("未知的模式");
+        break;
+    }
     log_debug("文件发送完成");
     terminate_connection(socket.get_file_descriptor(), seq_num + 1 + file_window);
 }
 
-void send_file_selective_repeat(int fd, const char *file_path, std::size_t window_size,
-                                std::uint32_t start_seq_num)
+template <mode_type mode>
+void send_file(int fd, const char *file_path, std::size_t window_size,
+               std::uint32_t start_seq_num)
 {
     ifs.open(file_path, std::ios::binary);
     if (ifs.fail())
@@ -160,9 +177,9 @@ void send_file_selective_repeat(int fd, const char *file_path, std::size_t windo
         if (ep_event.data.fd != fd)
         {
             attemp_times++;
-            if (attemp_times > 50)
+            if (attemp_times > 500)
                 logs::error("发送数据达到最大尝试次数");
-            resend_selective_repeat(fd);
+            resend<mode>(fd);
             set_timer(100);
         }
         else
@@ -172,7 +189,7 @@ void send_file_selective_repeat(int fd, const char *file_path, std::size_t windo
             if (header_buf.is_valid() && header_buf.get_length() == 0 &&
                 header_buf.get_flag() == ACK)
             {
-                if (process_ack_selective_repeat(header_buf.get_seq_num(), fd))
+                if (process_ack<mode>(header_buf.get_seq_num()))
                 {
                     attemp_times = 0;
                     set_timer(100);
@@ -182,7 +199,8 @@ void send_file_selective_repeat(int fd, const char *file_path, std::size_t windo
     }
 }
 
-[[nodiscard]] bool process_ack_selective_repeat(std::uint32_t seq_num, int fd)
+template <>
+[[nodiscard]] bool process_ack<mode_type::selective_repeat>(std::uint32_t seq_num)
 {
     if (seq_num < window_left_seq_num || seq_num >= window_right_seq_num)
     {
@@ -224,15 +242,49 @@ void send_file_selective_repeat(int fd, const char *file_path, std::size_t windo
               window_left_unsend_seq_num);
     return true;
 }
+template <> [[nodiscard]] bool process_ack<mode_type::go_back_n>(std::uint32_t seq_num)
+{
+    if (seq_num <= window_left_seq_num || seq_num > window_right_seq_num)
+    {
+        log_debug("`process_ack()`: 接收到的 `seq_num`: ", seq_num, " 超出当前窗口 [",
+                  window_left_seq_num, ", ", window_right_seq_num - 1, ']');
+        return false;
+    }
 
-void resend_selective_repeat(int fd)
+    for (std::size_t i{window_left_seq_num}; i < seq_num; i++)
+    {
+        log_debug("ACK ", i);
+        ack_flags_vec[i % window_size] = true;
+    }
+
+    std::size_t difference{seq_num - window_left_seq_num};
+    window_left_seq_num += difference;
+    n_need_ack_window -= difference;
+    window_left_unsend_seq_num = window_right_seq_num;
+    window_right_seq_num += difference;
+    if (window_right_seq_num - window_left_seq_num > n_need_ack_window)
+        window_right_seq_num = window_left_seq_num + n_need_ack_window;
+
+    log_debug("窗口变为 ", window_left_seq_num, ' ', window_right_seq_num, ' ',
+              window_left_unsend_seq_num);
+    return true;
+}
+
+template <mode_type mode> void resend(int fd)
 {
     for (std::size_t i{window_left_seq_num}; i < window_right_seq_num; i++)
     {
         std::size_t index{i % window_size};
-        if (!ack_flags_vec[index])
+        if constexpr (mode == mode_type::selective_repeat)
         {
-            // log_debug("重发", packets_vec[index].get_seq_num());
+            if (!ack_flags_vec[index])
+            {
+                if (packets_vec[index].send(fd) == -1)
+                    logs::error("发送包失败", packets_vec[index]);
+            }
+        }
+        else
+        {
             if (packets_vec[index].send(fd) == -1)
                 logs::error("发送包失败", packets_vec[index]);
         }
@@ -254,10 +306,8 @@ void send_k(int fd)
         packets_vec[index].make_packet(seq_num, payload_size, 0);
         if (packets_vec[index].send(fd) == -1)
             logs::error("发送包失败", packets_vec[index]);
-        // log_debug("发送 ", packets_vec[index].get_seq_num());
     }
     window_left_unsend_seq_num = window_right_seq_num;
-    // set_timer(100);
 }
 
 void set_timer(int time)
