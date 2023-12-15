@@ -163,17 +163,17 @@ std::size_t handshake(int fd)
 template <>
 bool process_new_packet<mode_type::selective_repeat>(const rtp_packet &packet, int fd)
 {
-    if (packet.get_length() == 0 && packet.get_flag() == FIN)
+    if (packet.get_length() == 0 && packet.get_flag() == FIN &&
+        packet.get_seq_num() == fin_seq_num + 1)
     {
-        if (packet.is_valid() && packet.get_seq_num() == fin_seq_num + 1)
-        {
-            log_debug("收到 FIN");
-            fin_seq_num = packet.get_seq_num();
-            return true;
-        }
+        log_debug("收到 FIN");
+        fin_seq_num = packet.get_seq_num();
+        return true;
     }
+
     if (packet.get_flag() != 0)
         return false;
+
     std::uint32_t seq_num{packet.get_seq_num()};
     std::size_t index{seq_num % window_size};
     if (seq_num >= window_right_seq_num)
@@ -187,9 +187,6 @@ bool process_new_packet<mode_type::selective_repeat>(const rtp_packet &packet, i
             error_process::unix_error("发送包时出现了问题");
         return false;
     }
-
-    if (!packet.is_valid())
-        return false;
 
     ack_flags_vec[index] = true;
     packets_vec[index] = packet;
@@ -226,17 +223,17 @@ bool process_new_packet<mode_type::selective_repeat>(const rtp_packet &packet, i
 template <>
 bool process_new_packet<mode_type::go_back_n>(const rtp_packet &packet, int fd)
 {
-    if (packet.get_length() == 0 && packet.get_flag() == FIN)
+    if (packet.get_length() == 0 && packet.get_flag() == FIN &&
+        packet.get_seq_num() == fin_seq_num + 1)
     {
-        if (packet.is_valid() && packet.get_seq_num() == fin_seq_num + 1)
-        {
-            log_debug("收到 FIN");
-            fin_seq_num = packet.get_seq_num();
-            return true;
-        }
+        log_debug("收到 FIN");
+        fin_seq_num = packet.get_seq_num();
+        return true;
     }
+
     if (packet.get_flag() != 0)
         return false;
+
     std::uint32_t seq_num{packet.get_seq_num()};
     std::size_t index{seq_num % window_size};
     if (seq_num >= window_right_seq_num)
@@ -250,9 +247,6 @@ bool process_new_packet<mode_type::go_back_n>(const rtp_packet &packet, int fd)
             error_process::unix_error("发送包时出现了问题");
         return false;
     }
-
-    if (!packet.is_valid())
-        return false;
 
     ack_flags_vec[index] = true;
     packets_vec[index] = packet;
@@ -319,8 +313,11 @@ void receive_file(int fd, const char *file_path, std::size_t window_size,
         {
             if (recv(fd, &packet_buf, sizeof(rtp_packet), 0) == -1)
                 error_process::unix_error("接收包时发生了问题: ");
-            if (process_new_packet<mode>(packet_buf, fd))
-                break;
+            if (packet_buf.is_valid())
+            {
+                if (process_new_packet<mode>(packet_buf, fd))
+                    break;
+            }
             start_timer(timer_wrapper.get_file_descriptor(), 5000);
         }
     }
