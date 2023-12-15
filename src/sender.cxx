@@ -3,8 +3,10 @@
 #include "rtp_header.hxx"
 #include "socket_process.hxx"
 #include "tools.hxx"
+#include <csignal>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
@@ -15,6 +17,8 @@
 #include <sys/socket.h>
 #include <sys/timerfd.h>
 #include <vector>
+
+[[noreturn]] void terminal(int err_num) { std::exit(EXIT_FAILURE); }
 
 void sender_core_function(const char *hose_name, const char *port, const char *file_path,
                           std::size_t window_size, mode_type mode);
@@ -51,6 +55,8 @@ int main(int argc, char **argv)
         log_debug("窗口大小: ", window_size);
         log_debug("模式: ", mode);
 
+        std::signal(SIGINT, terminal);
+        std::signal(SIGTERM, terminal);
         sender_core_function(host_name, port, file_path, window_size, mode);
 
         log_debug("Sender: 退出");
@@ -77,57 +83,55 @@ std::size_t window_left_seq_num;
 std::size_t window_right_seq_num;
 std::size_t window_left_unsend_seq_num;
 
-int ep_fd;
-int timer_fd;
+file_process::fd_wrapper socket_wrapper{-1};
+file_process::fd_wrapper timer_wrapper{-1};
+file_process::fd_wrapper epoll_wrapper{-1};
 
 void sender_core_function(const char *hose_name, const char *port, const char *file_path,
                           std::size_t window_size, mode_type mode)
 {
-    file_process::fd_wrapper socket(socket_process::open_sender_socket(hose_name, port));
-    file_process::fd_wrapper timer_wrapper(timerfd_create(0, 0));
-    timer_fd = timer_wrapper.get_file_descriptor();
-
-    if (timer_fd == -1)
+    socket_wrapper.open(socket_process::open_sender_socket(hose_name, port));
+    timer_wrapper.open(timerfd_create(0, 0));
+    epoll_wrapper.open(epoll_create1(0));
+    if (!timer_wrapper.is_valid())
         error_process::unix_error("`timerfd_create()` 错误: ");
-    file_process::fd_wrapper epoll_wrapper(epoll_create1(0));
-    ep_fd = epoll_wrapper.get_file_descriptor();
-    if (ep_fd == -1)
+    if (!epoll_wrapper.is_valid())
         error_process::unix_error("`epoll_create1()` 错误: ");
 
     epoll_event ep_event_sock, ep_event_timer;
     ep_event_sock.events = EPOLLIN;
-    ep_event_sock.data.fd = socket.get_file_descriptor();
-    if (epoll_ctl(ep_fd, EPOLL_CTL_ADD, socket.get_file_descriptor(), &ep_event_sock) ==
-        -1)
+    ep_event_sock.data.fd = socket_wrapper.get_file_descriptor();
+    if (epoll_ctl(epoll_wrapper.get_file_descriptor(), EPOLL_CTL_ADD,
+                  socket_wrapper.get_file_descriptor(), &ep_event_sock) == -1)
         error_process::unix_error("`epoll_ctl()` 错误: ");
 
     ep_event_timer.events = EPOLLIN;
     ep_event_timer.data.fd = timer_wrapper.get_file_descriptor();
-    if (epoll_ctl(ep_fd, EPOLL_CTL_ADD, timer_wrapper.get_file_descriptor(),
-                  &ep_event_timer) == -1)
+    if (epoll_ctl(epoll_wrapper.get_file_descriptor(), EPOLL_CTL_ADD,
+                  timer_wrapper.get_file_descriptor(), &ep_event_timer) == -1)
         error_process::unix_error("`epoll_ctl()` 错误: ");
 
     std::uint32_t seq_num{std::random_device{}()};
     if (seq_num > std::numeric_limits<std::uint16_t>::max())
         seq_num /= (std::numeric_limits<std::uint8_t>::max() + 1);
-    handshake(socket.get_file_descriptor(), seq_num);
+    handshake(socket_wrapper.get_file_descriptor(), seq_num);
     log_debug("握手完成");
     switch (mode)
     {
     case mode_type::go_back_n:
-        send_file<mode_type::go_back_n>(socket.get_file_descriptor(), file_path,
+        send_file<mode_type::go_back_n>(socket_wrapper.get_file_descriptor(), file_path,
                                         window_size, seq_num + 1);
         break;
     case mode_type::selective_repeat:
-        send_file<mode_type::selective_repeat>(socket.get_file_descriptor(), file_path,
-                                               window_size, seq_num + 1);
+        send_file<mode_type::selective_repeat>(socket_wrapper.get_file_descriptor(),
+                                               file_path, window_size, seq_num + 1);
         break;
     case mode_type::unknown:
         logs::error("未知的模式");
         break;
     }
     log_debug("文件发送完成");
-    terminate_connection(socket.get_file_descriptor(), seq_num + 1 + file_window);
+    terminate_connection(socket_wrapper.get_file_descriptor(), seq_num + 1 + file_window);
 }
 
 template <mode_type mode>
@@ -166,7 +170,7 @@ void send_file(int fd, const char *file_path, std::size_t window_size,
         if (n_need_ack_window == 0)
             return;
         send_window(fd);
-        if (epoll_wait(ep_fd, &ep_event, 1, -1) == -1)
+        if (epoll_wait(epoll_wrapper.get_file_descriptor(), &ep_event, 1, -1) == -1)
             error_process::unix_error("`epoll_wait()` 错误: ");
 
         if (ep_event.data.fd != fd)
@@ -175,7 +179,7 @@ void send_file(int fd, const char *file_path, std::size_t window_size,
             if (attemp_times > 500)
                 logs::error("发送数据达到最大尝试次数");
             resend<mode>(fd);
-            start_timer(timer_fd, 100);
+            start_timer(timer_wrapper.get_file_descriptor(), 100);
         }
         else
         {
@@ -187,7 +191,7 @@ void send_file(int fd, const char *file_path, std::size_t window_size,
                 if (process_ack<mode>(header_buf.get_seq_num()))
                 {
                     attemp_times = 0;
-                    start_timer(timer_fd, 100);
+                    start_timer(timer_wrapper.get_file_descriptor(), 100);
                 }
             }
         }
@@ -307,7 +311,7 @@ void send_window(int fd)
     }
     window_left_unsend_seq_num = window_right_seq_num;
     if (send_)
-        start_timer(timer_fd, 100);
+        start_timer(timer_wrapper.get_file_descriptor(), 100);
 }
 
 void handshake(int fd, std::uint32_t seq_num)
