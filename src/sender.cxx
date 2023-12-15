@@ -5,7 +5,6 @@
 #include "tools.hxx"
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
@@ -30,7 +29,7 @@ template <mode_type mode> void resend(int fd);
 
 template <mode_type mode> [[nodiscard]] bool process_ack(std::uint32_t seq_num);
 
-void send_k(int fd);
+void send_window(int fd);
 
 void set_timer(int time);
 
@@ -97,7 +96,7 @@ void sender_core_function(const char *hose_name, const char *port, const char *f
     if (ep_fd == -1)
         error_process::unix_error("`epoll_create1()` 错误: ");
 
-    static epoll_event ep_event_sock, ep_event_timer;
+    epoll_event ep_event_sock, ep_event_timer;
     ep_event_sock.events = EPOLLIN;
     ep_event_sock.data.fd = socket.get_file_descriptor();
     if (epoll_ctl(ep_fd, EPOLL_CTL_ADD, socket.get_file_descriptor(), &ep_event_sock) ==
@@ -117,7 +116,6 @@ void sender_core_function(const char *hose_name, const char *port, const char *f
     log_debug("握手完成");
     switch (mode)
     {
-
     case mode_type::go_back_n:
         send_file<mode_type::go_back_n>(socket.get_file_descriptor(), file_path,
                                         window_size, seq_num + 1);
@@ -169,7 +167,7 @@ void send_file(int fd, const char *file_path, std::size_t window_size,
     {
         if (n_need_ack_window == 0)
             return;
-        send_k(fd);
+        send_window(fd);
         if (epoll_wait(ep_fd, &ep_event, 1, -1) == -1)
             error_process::unix_error("`epoll_wait()` 错误: ");
 
@@ -185,7 +183,7 @@ void send_file(int fd, const char *file_path, std::size_t window_size,
         {
             if (header_buf.recv(fd) == -1 && (errno != EAGAIN && errno != EWOULDBLOCK))
                 logs::error("接收包发生了错误");
-            if (header_buf.is_valid() && header_buf.get_length() == 0 &&
+            if (header_buf.get_length() == 0 && header_buf.is_valid() &&
                 header_buf.get_flag() == ACK)
             {
                 if (process_ack<mode>(header_buf.get_seq_num()))
@@ -241,6 +239,7 @@ template <>
               window_left_unsend_seq_num);
     return true;
 }
+
 template <> [[nodiscard]] bool process_ack<mode_type::go_back_n>(std::uint32_t seq_num)
 {
     if (seq_num <= window_left_seq_num || seq_num > window_right_seq_num)
@@ -290,7 +289,7 @@ template <mode_type mode> void resend(int fd)
     }
 }
 
-void send_k(int fd)
+void send_window(int fd)
 {
     bool send_{false};
     for (std::size_t seq_num{window_left_unsend_seq_num}; seq_num < window_right_seq_num;
