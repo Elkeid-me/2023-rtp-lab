@@ -21,7 +21,7 @@ enum class mode_type
 
 std::ostream &operator<<(std::ostream &os, const mode_type &mode);
 
-#define log_debug(...) ::logs::debug(__VA_ARGS__)
+#define log_debug(...) // ::logs::debug(__VA_ARGS__)
 
 namespace logs
 {
