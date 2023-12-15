@@ -56,6 +56,8 @@ void send_and_wait_header(int attemp_times, int fd, const rtp_header &send_heade
 template <int wait_seconds>
 void send_and_wait(int attemp_times, int fd, const rtp_header &send_header);
 
+void start_timer(int timer_fd, std::int64_t time);
+
 constexpr char SEND_HEADER_LOG[]{"\033[33m发送包\033[0m:\n"};
 constexpr char RECV_HEADER_LOG[]{"\033[33m接收包\033[0m:\n"};
 #endif

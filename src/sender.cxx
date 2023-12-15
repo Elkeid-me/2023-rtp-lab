@@ -31,8 +31,6 @@ template <mode_type mode> [[nodiscard]] bool process_ack(std::uint32_t seq_num);
 
 void send_window(int fd);
 
-void set_timer(int time);
-
 int main(int argc, char **argv)
 {
     try
@@ -177,7 +175,7 @@ void send_file(int fd, const char *file_path, std::size_t window_size,
             if (attemp_times > 500)
                 logs::error("发送数据达到最大尝试次数");
             resend<mode>(fd);
-            set_timer(100);
+            start_timer(timer_fd, 100);
         }
         else
         {
@@ -189,7 +187,7 @@ void send_file(int fd, const char *file_path, std::size_t window_size,
                 if (process_ack<mode>(header_buf.get_seq_num()))
                 {
                     attemp_times = 0;
-                    set_timer(100);
+                    start_timer(timer_fd, 100);
                 }
             }
         }
@@ -309,14 +307,7 @@ void send_window(int fd)
     }
     window_left_unsend_seq_num = window_right_seq_num;
     if (send_)
-        set_timer(100);
-}
-
-void set_timer(int time)
-{
-    itimerspec spec{{0, 0}, {time / 1000, time % 1000 * 1000'000}};
-    if (timerfd_settime(timer_fd, 0, &spec, NULL) == -1)
-        error_process::unix_error("`timerfd_settime()` 错误: ");
+        start_timer(timer_fd, 100);
 }
 
 void handshake(int fd, std::uint32_t seq_num)

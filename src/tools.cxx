@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <sys/timerfd.h>
 
 static std::uint32_t crc32_for_byte(std::uint32_t r)
 {
@@ -142,4 +143,11 @@ template <> void send_and_wait<5>(int attemp_times, int fd, const rtp_header &se
 {
     socket_process::set_5s_recv_timeout(fd);
     send_and_wait_helper(attemp_times, fd, send_header);
+}
+
+void start_timer(int timer_fd, std::int64_t time)
+{
+    itimerspec spec{{0, 0}, {time / 1000, time % 1000 * 1000'000}};
+    if (timerfd_settime(timer_fd, 0, &spec, NULL) == -1)
+        error_process::unix_error("`timerfd_settime()` 错误: ");
 }
