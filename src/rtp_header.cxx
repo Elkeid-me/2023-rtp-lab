@@ -45,7 +45,7 @@ bool rtp_header::is_valid() const
     m_checksum = original_checksum;
     if (new_checksum != original_checksum)
     {
-        log_debug("错误的校验和");
+        log_debug("错误的校验和", original_checksum, ' ', new_checksum);
         return false;
     }
 
@@ -59,24 +59,6 @@ std::uint8_t rtp_header::get_flag() const { return m_flag; }
 rtp_packet::rtp_packet(std::uint32_t seq_num, std::uint16_t length, std::uint8_t flag)
     : rtp_header(seq_num, length, flag)
 {
-}
-
-[[nodiscard]] int rtp_packet::packet_recv(int fd)
-{
-    if (recv(fd) == -1)
-        return -1;
-    std::uint16_t length{get_length()};
-    if (length > PAYLOAD_MAX)
-    {
-        if (::recv(fd, m_payload, PAYLOAD_MAX, 0) == -1)
-            return -1;
-    }
-    else
-    {
-        if (::recv(fd, m_payload, m_length, 0) == -1)
-            return -1;
-    }
-    return 0;
 }
 
 char *rtp_packet::get_buf() { return m_payload; }
