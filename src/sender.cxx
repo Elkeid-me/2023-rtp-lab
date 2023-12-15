@@ -180,7 +180,7 @@ void send_file(int fd, const char *file_path, std::size_t window_size,
         else
         {
             if (header_buf.recv(fd) == -1 && (errno != EAGAIN && errno != EWOULDBLOCK))
-                logs::error("接收包发生了错误");
+                error_process::unix_error("接收包发生了错误: ");
             if (header_buf.get_length() == 0 && header_buf.is_valid() &&
                 header_buf.get_flag() == ACK)
             {
@@ -276,13 +276,13 @@ template <mode_type mode> void resend(int fd)
             if (!ack_flags_vec[index])
             {
                 if (packets_vec[index].send(fd) == -1)
-                    logs::error("发送包失败", packets_vec[index]);
+                    error_process::unix_error("发送包失败: ");
             }
         }
         else
         {
             if (packets_vec[index].send(fd) == -1)
-                logs::error("发送包失败", packets_vec[index]);
+                error_process::unix_error("发送包失败: ");
         }
     }
 }
@@ -303,7 +303,7 @@ void send_window(int fd)
 
         packets_vec[index].make_packet(seq_num, payload_size, 0);
         if (packets_vec[index].send(fd) == -1)
-            logs::error("发送包失败", packets_vec[index]);
+            error_process::unix_error("发送包失败: ");
     }
     window_left_unsend_seq_num = window_right_seq_num;
     if (send_)
