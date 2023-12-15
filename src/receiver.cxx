@@ -4,6 +4,7 @@
 #include "socket_process.hxx"
 #include "tools.hxx"
 #include <cerrno>
+#include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
@@ -11,6 +12,8 @@
 #include <sys/socket.h>
 #include <sys/timerfd.h>
 #include <vector>
+
+[[noreturn]] void terminal(int err_num) { std::exit(EXIT_FAILURE); }
 
 void receiver_core_function(const char *port, const char *file_path,
                             std::size_t window_size, mode_type mode);
@@ -45,6 +48,8 @@ int main(int argc, char **argv)
         log_debug("窗口大小: ", window_size);
         log_debug("模式: ", mode);
 
+        std::signal(SIGINT, terminal);
+        std::signal(SIGTERM, terminal);
         receiver_core_function(port, file_path, window_size, mode);
 
         log_debug("Receiver: 正在退出");
@@ -70,43 +75,53 @@ std::size_t window_left_seq_num;
 std::size_t window_right_seq_num;
 std::size_t fin_seq_num;
 
-int ep_fd;
-int timer_fd;
+file_process::fd_wrapper socket_wrapper{-1};
+file_process::fd_wrapper timer_wrapper{-1};
+file_process::fd_wrapper epoll_wrapper{-1};
 
 void receiver_core_function(const char *port, const char *file_path,
                             std::size_t window_size, mode_type mode)
 {
-    file_process::fd_wrapper socket{socket_process::open_receiver_socket(port)};
+    socket_wrapper.open(socket_process::open_receiver_socket(port));
 
-    file_process::fd_wrapper timer_wrapper(timerfd_create(0, 0));
-    timer_fd = timer_wrapper.get_file_descriptor();
+    timer_wrapper.open(timerfd_create(0, 0));
 
-    if (timer_fd == -1)
+    if (!timer_wrapper.is_valid())
         error_process::unix_error("`timerfd_create()` 错误: ");
-    file_process::fd_wrapper epoll_wrapper(epoll_create1(0));
-    ep_fd = epoll_wrapper.get_file_descriptor();
-    if (ep_fd == -1)
+    epoll_wrapper.open(epoll_create1(0));
+    if (!epoll_wrapper.is_valid())
         error_process::unix_error("`epoll_create1()` 错误: ");
 
     epoll_event ep_event_sock, ep_event_timer;
     ep_event_sock.events = EPOLLIN;
-    ep_event_sock.data.fd = socket.get_file_descriptor();
-    if (epoll_ctl(ep_fd, EPOLL_CTL_ADD, socket.get_file_descriptor(), &ep_event_sock) ==
-        -1)
+    ep_event_sock.data.fd = socket_wrapper.get_file_descriptor();
+    if (epoll_ctl(epoll_wrapper.get_file_descriptor(), EPOLL_CTL_ADD,
+                  socket_wrapper.get_file_descriptor(), &ep_event_sock) == -1)
         error_process::unix_error("`epoll_ctl()` 错误: ");
 
     ep_event_timer.events = EPOLLIN;
     ep_event_timer.data.fd = timer_wrapper.get_file_descriptor();
-    if (epoll_ctl(ep_fd, EPOLL_CTL_ADD, timer_wrapper.get_file_descriptor(),
-                  &ep_event_timer) == -1)
+    if (epoll_ctl(epoll_wrapper.get_file_descriptor(), EPOLL_CTL_ADD,
+                  timer_wrapper.get_file_descriptor(), &ep_event_timer) == -1)
         error_process::unix_error("`epoll_ctl()` 错误: ");
 
-    std::size_t start_seq_num{handshake(socket.get_file_descriptor())};
-    if (mode == mode_type::go_back_n)
-        exit(1);
-    receive_file<mode_type::selective_repeat>(socket.get_file_descriptor(), file_path,
-                                              window_size, start_seq_num);
-    terminate_connection(socket.get_file_descriptor(), fin_seq_num);
+    std::size_t start_seq_num{handshake(socket_wrapper.get_file_descriptor())};
+
+    switch (mode)
+    {
+    case mode_type::go_back_n:
+        receive_file<mode_type::go_back_n>(socket_wrapper.get_file_descriptor(),
+                                           file_path, window_size, start_seq_num);
+        break;
+    case mode_type::selective_repeat:
+        receive_file<mode_type::selective_repeat>(socket_wrapper.get_file_descriptor(),
+                                                  file_path, window_size, start_seq_num);
+        break;
+    case mode_type::unknown:
+        logs::error("未知的模式");
+        break;
+    }
+    terminate_connection(socket_wrapper.get_file_descriptor(), fin_seq_num);
 }
 
 std::size_t handshake(int fd)
@@ -150,7 +165,7 @@ bool process_new_packet<mode_type::selective_repeat>(const rtp_packet &packet, i
 {
     if (packet.get_length() == 0 && packet.get_flag() == FIN)
     {
-        if (packet.is_valid())
+        if (packet.is_valid() && packet.get_seq_num() == fin_seq_num + 1)
         {
             log_debug("收到 FIN");
             fin_seq_num = packet.get_seq_num();
@@ -168,7 +183,6 @@ bool process_new_packet<mode_type::selective_repeat>(const rtp_packet &packet, i
     }
     if (seq_num < window_left_seq_num || ack_flags_vec[index])
     {
-        // log_debug("ACK ", seq_num);
         if (rtp_header(seq_num, 0, ACK).send(fd) == -1)
             error_process::unix_error("发送包时出现了问题");
         return false;
@@ -179,9 +193,11 @@ bool process_new_packet<mode_type::selective_repeat>(const rtp_packet &packet, i
 
     ack_flags_vec[index] = true;
     packets_vec[index] = packet;
+    if (fin_seq_num < packet.get_seq_num())
+        fin_seq_num = packet.get_seq_num();
     if (rtp_header(seq_num, 0, ACK).send(fd) == -1)
         error_process::unix_error("发送包时出现了问题");
-    // log_debug("ACK ", seq_num);
+    log_debug("ACK ", seq_num);
 
     if (seq_num != window_left_seq_num)
         return false;
@@ -203,7 +219,72 @@ bool process_new_packet<mode_type::selective_repeat>(const rtp_packet &packet, i
     window_left_seq_num += difference;
     window_right_seq_num += difference;
 
-    // log_debug("窗口变为 ", window_left_seq_num, ' ', window_right_seq_num);
+    log_debug("窗口变为 ", window_left_seq_num, ' ', window_right_seq_num);
+    return false;
+}
+
+template <>
+bool process_new_packet<mode_type::go_back_n>(const rtp_packet &packet, int fd)
+{
+    if (packet.get_length() == 0 && packet.get_flag() == FIN)
+    {
+        if (packet.is_valid() && packet.get_seq_num() == fin_seq_num + 1)
+        {
+            log_debug("收到 FIN");
+            fin_seq_num = packet.get_seq_num();
+            return true;
+        }
+    }
+    if (packet.get_flag() != 0)
+        return false;
+    std::uint32_t seq_num{packet.get_seq_num()};
+    std::size_t index{seq_num % window_size};
+    if (seq_num >= window_right_seq_num)
+    {
+        log_debug("收到的 `seq_num` ", seq_num, " 大于窗口右边界 ", window_right_seq_num);
+        return false;
+    }
+    if (seq_num < window_left_seq_num || ack_flags_vec[index])
+    {
+        if (rtp_header(window_left_seq_num, 0, ACK).send(fd) == -1)
+            error_process::unix_error("发送包时出现了问题");
+        return false;
+    }
+
+    if (!packet.is_valid())
+        return false;
+
+    ack_flags_vec[index] = true;
+    packets_vec[index] = packet;
+    if (fin_seq_num < packet.get_seq_num())
+        fin_seq_num = packet.get_seq_num();
+
+    log_debug("ACK ", seq_num);
+
+    if (seq_num != window_left_seq_num)
+        return false;
+
+    std::size_t _1st_nack_pkt;
+    for (_1st_nack_pkt = window_left_seq_num; _1st_nack_pkt < window_right_seq_num;
+         _1st_nack_pkt++)
+    {
+        std::size_t index{_1st_nack_pkt % window_size};
+
+        if (!ack_flags_vec[index])
+            break;
+
+        ack_flags_vec[index] = false;
+        ofs.write(packets_vec[index].get_buf(), packets_vec[index].get_length());
+    }
+
+    std::size_t difference{_1st_nack_pkt - window_left_seq_num};
+    window_left_seq_num += difference;
+    window_right_seq_num += difference;
+
+    log_debug("窗口变为 ", window_left_seq_num, ' ', window_right_seq_num);
+
+    if (rtp_header(window_left_seq_num, 0, ACK).send(fd) == -1)
+        error_process::unix_error("发送包时出现了问题");
     return false;
 }
 
@@ -226,11 +307,11 @@ void receive_file(int fd, const char *file_path, std::size_t window_size,
     rtp_packet packet_buf;
 
     log_debug("开始接收文件");
-    start_timer(timer_fd, 5000);
+    start_timer(timer_wrapper.get_file_descriptor(), 5000);
     socket_process::set_no_recv_timeout(fd);
     while (true)
     {
-        if (epoll_wait(ep_fd, &ep_event, 1, -1) == -1)
+        if (epoll_wait(epoll_wrapper.get_file_descriptor(), &ep_event, 1, -1) == -1)
             error_process::unix_error("`epoll_wait()` 错误: ");
         if (ep_event.data.fd != fd)
             logs::error("接收数据超时");
@@ -240,7 +321,7 @@ void receive_file(int fd, const char *file_path, std::size_t window_size,
                 error_process::unix_error("接收包时发生了问题: ");
             if (process_new_packet<mode>(packet_buf, fd))
                 break;
-            start_timer(timer_fd, 5000);
+            start_timer(timer_wrapper.get_file_descriptor(), 5000);
         }
     }
 }
