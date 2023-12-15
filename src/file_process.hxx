@@ -1,8 +1,6 @@
 #ifndef FILE_PROCESS_H
 #define FILE_PROCESS_H
 
-#include <cstdio>
-
 namespace file_process
 {
     void close(int fd);
@@ -22,24 +20,10 @@ namespace file_process
         fd_wrapper(int);
         ~fd_wrapper();
 
+        void open(int fd);
+
         bool is_valid() const;
         int get_file_descriptor();
-    };
-
-    class std_FILE_wrapper
-    {
-    private:
-        std::FILE *m_file_ptr{nullptr};
-
-    public:
-        std_FILE_wrapper(const std_FILE_wrapper &) = delete;
-        std_FILE_wrapper &operator=(const std_FILE_wrapper &) = delete;
-
-        std_FILE_wrapper(std::FILE *);
-        ~std_FILE_wrapper();
-
-        bool is_valid() const;
-        std::FILE *get_file_ptr();
     };
 }
 
