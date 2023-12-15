@@ -49,6 +49,8 @@ public:
     void make_packet(std::uint32_t seq_num, std::uint16_t length, std::uint8_t flag);
 
     rtp_packet() = default;
+
+    [[nodiscard]] int packet_recv(int fd);
 };
 
 #endif // RTP_HEAD_HXX
