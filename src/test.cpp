@@ -175,6 +175,11 @@ TEST_F(RTP, NORMAL_SMALL_WINDOW) {
     ASSERT_EQ(run_tests("1", "0", "0", false, false), 1);
 }
 
+TEST_F(RTP, NORMAL_HUGE_WINDOW) {
+    ASSERT_EQ(run_tests("20000", "0", "0", true, false), 1);
+    ASSERT_EQ(run_tests("20000", "0", "0", false, false), 1);
+}
+
 TEST_F(RTP, NORMAL_OPT) {
     ASSERT_EQ(run_tests("16", "0", "0", true, true), 1);
     ASSERT_EQ(run_tests("16", "0", "0", false, true), 1);
@@ -183,6 +188,11 @@ TEST_F(RTP, NORMAL_OPT) {
 TEST_F(RTP, NORMAL_OPT_SMALL_WINDOW) {
     ASSERT_EQ(run_tests("1", "0", "0", true, true), 1);
     ASSERT_EQ(run_tests("1", "0", "0", false, true), 1);
+}
+
+TEST_F(RTP, NORMAL_OPT_HUGE_WINDOW) {
+    ASSERT_EQ(run_tests("20000", "0", "0", true, true), 1);
+    ASSERT_EQ(run_tests("20000", "0", "0", false, true), 1);
 }
 
 /* -------------------------- normal receiver tests ------------------------- */
@@ -244,6 +254,14 @@ TEST_F(RTP, OPT_RECEIVER_MIXED_2) {
     ASSERT_EQ(run_tests("16", "15", "30", false, true), 1);
 }
 
+TEST_F(RTP, OPT_RECEIVER_MIXED_3) {
+    ASSERT_EQ(run_tests("32", "15", "60", false, true), 1);
+}
+
+TEST_F(RTP, OPT_RECEIVER_MIXED_4) {
+    ASSERT_EQ(run_tests("32", "11", "60", false, true), 1);
+}
+
 /* ---------------------------- opt sender tests ---------------------------- */
 TEST_F(RTP, OPT_SENDER_SINGLE_1) {
     ASSERT_EQ(run_tests("16", "1", "10", true, true), 1);
@@ -261,4 +279,12 @@ TEST_F(RTP, OPT_SENDER_MIXED_1) {
 
 TEST_F(RTP, OPT_SENDER_MIXED_2) {
     ASSERT_EQ(run_tests("16", "15", "30", true, true), 1);
+}
+
+TEST_F(RTP, OPT_SENDER_MIXED_3) {
+    ASSERT_EQ(run_tests("32", "15", "60", true, true), 1);
+}
+
+TEST_F(RTP, OPT_SENDER_MIXED_4) {
+    ASSERT_EQ(run_tests("32", "11", "50", true, true), 1);
 }
