@@ -87,12 +87,12 @@ std::ostream &operator<<(std::ostream &os, const mode_type &mode)
     return os;
 }
 
-void send_and_wait_header(int attemp_times, int fd, const rtp_header &send_header,
+void send_and_wait_header(int attempt_times, int fd, const rtp_header &send_header,
                           const rtp_header &wait_header)
 {
     int times{0};
     rtp_header header_buffer;
-    for (times = 1; times <= attemp_times; times++)
+    for (times = 1; times <= attempt_times; times++)
     {
         if (send_header.send(fd) == -1)
             error_process::unix_error("`send()` 错误: ");
@@ -112,7 +112,7 @@ void send_and_wait_header(int attemp_times, int fd, const rtp_header &send_heade
         logs::error("超出尝试次数.");
 }
 
-static void send_and_wait_helper(int attemp_times, int fd, const rtp_header &send_header)
+static void send_and_wait_helper(int attempt_times, int fd, const rtp_header &send_header)
 {
     int times{0};
     rtp_header header_buffer;
@@ -133,16 +133,16 @@ static void send_and_wait_helper(int attemp_times, int fd, const rtp_header &sen
     socket_process::set_100ms_recv_timeout(fd);
 }
 
-template <> void send_and_wait<2>(int attemp_times, int fd, const rtp_header &send_header)
+template <> void send_and_wait<2>(int attempt_times, int fd, const rtp_header &send_header)
 {
     socket_process::set_2s_recv_timeout(fd);
-    send_and_wait_helper(attemp_times, fd, send_header);
+    send_and_wait_helper(attempt_times, fd, send_header);
 }
 
-template <> void send_and_wait<5>(int attemp_times, int fd, const rtp_header &send_header)
+template <> void send_and_wait<5>(int attempt_times, int fd, const rtp_header &send_header)
 {
     socket_process::set_5s_recv_timeout(fd);
-    send_and_wait_helper(attemp_times, fd, send_header);
+    send_and_wait_helper(attempt_times, fd, send_header);
 }
 
 void start_timer(int timer_fd, std::int64_t time)

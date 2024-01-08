@@ -9,7 +9,7 @@ static addrinfo *get_addr_info(const char *host, const char *service,
                                const addrinfo *hints);
 
 static void set_socket_option(int s, int level, int optname, const void *optval,
-                              int optlen);
+                              int opt_len);
 
 static int open_receiver_socket(const char *port);
 
@@ -76,9 +76,9 @@ static addrinfo *get_addr_info(const char *host, const char *service,
 }
 
 static void set_socket_option(int s, int level, int optname, const void *optval,
-                              int optlen)
+                              int opt_len)
 {
-    if (setsockopt(s, level, optname, optval, optlen) < 0)
+    if (setsockopt(s, level, optname, optval, opt_len) < 0)
         error_process::unix_error("`setsockopt` 错误: ");
 }
 

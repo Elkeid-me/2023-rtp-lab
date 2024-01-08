@@ -81,7 +81,7 @@ std::size_t file_window;
 
 std::size_t window_left_seq_num;
 std::size_t window_right_seq_num;
-std::size_t window_left_unsend_seq_num;
+std::size_t window_left_unsent_seq_num;
 
 file_process::fd_wrapper socket_wrapper{-1};
 file_process::fd_wrapper timer_wrapper{-1};
@@ -154,14 +154,14 @@ void send_file(int fd, const char *file_path, std::size_t window_size,
     ack_flags_vec.resize(window_size, false);
 
     window_left_seq_num = start_seq_num;
-    window_left_unsend_seq_num = window_left_seq_num;
+    window_left_unsent_seq_num = window_left_seq_num;
     window_right_seq_num =
         window_left_seq_num + (file_window > window_size ? window_size : file_window);
 
     n_need_ack_window = file_window;
 
     epoll_event ep_event{EPOLLIN};
-    int attemp_times{0};
+    int attempt_times{0};
     rtp_header header_buf;
 
     log_debug("开始发送文件");
@@ -175,8 +175,8 @@ void send_file(int fd, const char *file_path, std::size_t window_size,
 
         if (ep_event.data.fd != fd)
         {
-            attemp_times++;
-            if (attemp_times > 500)
+            attempt_times++;
+            if (attempt_times > 500)
                 logs::error("发送数据达到最大尝试次数");
             resend<mode>(fd);
             start_timer(timer_wrapper.get_file_descriptor(), 100);
@@ -190,7 +190,7 @@ void send_file(int fd, const char *file_path, std::size_t window_size,
             {
                 if (process_ack<mode>(header_buf.get_seq_num()))
                 {
-                    attemp_times = 0;
+                    attempt_times = 0;
                     start_timer(timer_wrapper.get_file_descriptor(), 100);
                 }
             }
@@ -232,13 +232,13 @@ template <>
     std::size_t difference{_1st_nack_pkt - window_left_seq_num};
     window_left_seq_num += difference;
     n_need_ack_window -= difference;
-    window_left_unsend_seq_num = window_right_seq_num;
+    window_left_unsent_seq_num = window_right_seq_num;
     window_right_seq_num += difference;
     if (window_right_seq_num - window_left_seq_num > n_need_ack_window)
         window_right_seq_num = window_left_seq_num + n_need_ack_window;
 
     log_debug("窗口变为 ", window_left_seq_num, ' ', window_right_seq_num, ' ',
-              window_left_unsend_seq_num);
+              window_left_unsent_seq_num);
     return true;
 }
 
@@ -260,13 +260,13 @@ template <> [[nodiscard]] bool process_ack<mode_type::go_back_n>(std::uint32_t s
     std::size_t difference{seq_num - window_left_seq_num};
     window_left_seq_num += difference;
     n_need_ack_window -= difference;
-    window_left_unsend_seq_num = window_right_seq_num;
+    window_left_unsent_seq_num = window_right_seq_num;
     window_right_seq_num += difference;
     if (window_right_seq_num - window_left_seq_num > n_need_ack_window)
         window_right_seq_num = window_left_seq_num + n_need_ack_window;
 
     log_debug("窗口变为 ", window_left_seq_num, ' ', window_right_seq_num, ' ',
-              window_left_unsend_seq_num);
+              window_left_unsent_seq_num);
     return true;
 }
 
@@ -294,7 +294,7 @@ template <mode_type mode> void resend(int fd)
 void send_window(int fd)
 {
     bool send_{false};
-    for (std::size_t seq_num{window_left_unsend_seq_num}; seq_num < window_right_seq_num;
+    for (std::size_t seq_num{window_left_unsent_seq_num}; seq_num < window_right_seq_num;
          seq_num++)
     {
         send_ = true;
@@ -309,7 +309,7 @@ void send_window(int fd)
         if (packets_vec[index].send(fd) == -1)
             error_process::unix_error("发送包失败: ");
     }
-    window_left_unsend_seq_num = window_right_seq_num;
+    window_left_unsent_seq_num = window_right_seq_num;
     if (send_)
         start_timer(timer_wrapper.get_file_descriptor(), 100);
 }
