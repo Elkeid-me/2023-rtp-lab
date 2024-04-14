@@ -1,16 +1,13 @@
-cmake_minimum_required(VERSION 3.18)
-project(assignment2-rtp)
+cmake_minimum_required(VERSION 3.22)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
+project(rtp-lab)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_C_STANDARD 11)
 set(CMAKE_BUILD_TYPE "Release")
 add_compile_options("-Wall")
-
-find_package(Threads REQUIRED)
-set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
-set(THREADS_PREFER_PTHREAD_FLAG TRUE)
-set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
 add_library(rtp_lib
     src/error_process.cxx
