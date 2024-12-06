@@ -13,4 +13,4 @@ namespace error_process
     }
 
     void gai_error(int code, const char *msg) { logs::error(msg, gai_strerror(code)); }
-};
+}

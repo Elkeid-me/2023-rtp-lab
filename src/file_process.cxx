@@ -35,4 +35,4 @@ namespace file_process
 
     bool fd_wrapper::is_valid() const { return m_file_descriptor >= 0; }
     int fd_wrapper::get_file_descriptor() { return m_file_descriptor; }
-};
+}
